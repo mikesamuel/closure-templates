@@ -128,6 +128,40 @@ public final class BytecodeCompiler {
     int numBytes() { return numBytes; }
     int numFields() { return numFields; }
     int numDetachStates() { return numDetachStates; }
+
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + ((classes == null) ? 0 : classes.hashCode());
+      result = prime * result + numBytes;
+      result = prime * result + numDetachStates;
+      result = prime * result + numFields;
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj)
+        return true;
+      if (obj == null)
+        return false;
+      if (getClass() != obj.getClass())
+        return false;
+      CompilationResult other = (CompilationResult) obj;
+      if (classes == null) {
+        if (other.classes != null)
+          return false;
+      } else if (!classes.equals(other.classes))
+        return false;
+      if (numBytes != other.numBytes)
+        return false;
+      if (numDetachStates != other.numDetachStates)
+        return false;
+      if (numFields != other.numFields)
+        return false;
+      return true;
+    }
   }
 
   /**

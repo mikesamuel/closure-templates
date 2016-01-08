@@ -29,6 +29,8 @@ import com.google.template.soy.jbcsrc.VariableSet.VarKey.Kind;
 import com.google.template.soy.jbcsrc.api.AdvisingStringBuilder;
 import com.google.template.soy.jbcsrc.shared.CompiledTemplate;
 
+import autovalue.shaded.com.google.common.common.base.Objects;
+
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
@@ -138,6 +140,20 @@ final class VariableSet {
     VarKey(Kind kind, String name) {
       this.kind = kind;
       this.name = name;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(kind, name);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof VarKey)) { return false; }
+      VarKey that = (VarKey) o;
+      return Objects.equal(this.kind, that.kind)
+          && Objects.equal(this.name, that.name);
+
     }
   }
 

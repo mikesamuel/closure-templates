@@ -103,4 +103,47 @@ import org.objectweb.asm.commons.Method;
     this.typeInfo = typeInfo;
     this.node = node;
   }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((constructor == null) ? 0 : constructor.hashCode());
+    result = prime * result + ((node == null) ? 0 : node.hashCode());
+    result = prime * result + ((renderMethod == null) ? 0 : renderMethod.hashCode());
+    result = prime * result + ((typeInfo == null) ? 0 : typeInfo.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj)
+      return true;
+    if (obj == null)
+      return false;
+    if (getClass() != obj.getClass())
+      return false;
+    CompiledTemplateMetadata other = (CompiledTemplateMetadata) obj;
+    if (constructor == null) {
+      if (other.constructor != null)
+        return false;
+    } else if (!constructor.equals(other.constructor))
+      return false;
+    if (node == null) {
+      if (other.node != null)
+        return false;
+    } else if (!node.equals(other.node))
+      return false;
+    if (renderMethod == null) {
+      if (other.renderMethod != null)
+        return false;
+    } else if (!renderMethod.equals(other.renderMethod))
+      return false;
+    if (typeInfo == null) {
+      if (other.typeInfo != null)
+        return false;
+    } else if (!typeInfo.equals(other.typeInfo))
+      return false;
+    return true;
+  }
 }

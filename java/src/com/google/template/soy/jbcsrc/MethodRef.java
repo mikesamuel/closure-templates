@@ -440,4 +440,56 @@ final class MethodRef {
     this.argTypes = argTypes;
     this.features = features;
   }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((argTypes == null) ? 0 : argTypes.hashCode());
+    result = prime * result + ((features == null) ? 0 : features.hashCode());
+    result = prime * result + ((method == null) ? 0 : method.hashCode());
+    result = prime * result + opcode;
+    result = prime * result + ((owner == null) ? 0 : owner.hashCode());
+    result = prime * result + ((returnType == null) ? 0 : returnType.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj)
+      return true;
+    if (obj == null)
+      return false;
+    if (getClass() != obj.getClass())
+      return false;
+    MethodRef other = (MethodRef) obj;
+    if (argTypes == null) {
+      if (other.argTypes != null)
+        return false;
+    } else if (!argTypes.equals(other.argTypes))
+      return false;
+    if (features == null) {
+      if (other.features != null)
+        return false;
+    } else if (!features.equals(other.features))
+      return false;
+    if (method == null) {
+      if (other.method != null)
+        return false;
+    } else if (!method.equals(other.method))
+      return false;
+    if (opcode != other.opcode)
+      return false;
+    if (owner == null) {
+      if (other.owner != null)
+        return false;
+    } else if (!owner.equals(other.owner))
+      return false;
+    if (returnType == null) {
+      if (other.returnType != null)
+        return false;
+    } else if (!returnType.equals(other.returnType))
+      return false;
+    return true;
+  }
 }

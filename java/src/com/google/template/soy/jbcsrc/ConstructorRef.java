@@ -126,4 +126,41 @@ final class ConstructorRef {
     this.method = method;
     this.argTypes = argTypes;
   }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((argTypes == null) ? 0 : argTypes.hashCode());
+    result = prime * result + ((instanceClass == null) ? 0 : instanceClass.hashCode());
+    result = prime * result + ((method == null) ? 0 : method.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj)
+      return true;
+    if (obj == null)
+      return false;
+    if (getClass() != obj.getClass())
+      return false;
+    ConstructorRef other = (ConstructorRef) obj;
+    if (argTypes == null) {
+      if (other.argTypes != null)
+        return false;
+    } else if (!argTypes.equals(other.argTypes))
+      return false;
+    if (instanceClass == null) {
+      if (other.instanceClass != null)
+        return false;
+    } else if (!instanceClass.equals(other.instanceClass))
+      return false;
+    if (method == null) {
+      if (other.method != null)
+        return false;
+    } else if (!method.equals(other.method))
+      return false;
+    return true;
+  }
 }

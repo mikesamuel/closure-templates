@@ -46,6 +46,37 @@ public abstract class SoyMsgPart {
       this.spec = spec;
       this.parts = parts;
     }
+
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + ((parts == null) ? 0 : parts.hashCode());
+      result = prime * result + ((spec == null) ? 0 : spec.hashCode());
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj)
+        return true;
+      if (obj == null)
+        return false;
+      if (getClass() != obj.getClass())
+        return false;
+      Case<?> other = (Case<?>) obj;
+      if (parts == null) {
+        if (other.parts != null)
+          return false;
+      } else if (!parts.equals(other.parts))
+        return false;
+      if (spec == null) {
+        if (other.spec != null)
+          return false;
+      } else if (!spec.equals(other.spec))
+        return false;
+      return true;
+    }
   }
 
   // No methods.
