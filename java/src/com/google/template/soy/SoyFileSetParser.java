@@ -48,15 +48,22 @@ import javax.annotation.Nullable;
  */
 public final class SoyFileSetParser {
   /** A simple tuple for the result of a parse operation. */
-  @AutoValue
-  public abstract static class ParseResult {
+  public static final class ParseResult {
     static ParseResult create(SoyFileSetNode soyTree, TemplateRegistry registry) {
-      return new AutoValue_SoyFileSetParser_ParseResult(soyTree, registry);
+      return new ParseResult(soyTree, registry);
     }
 
-    public abstract SoyFileSetNode fileSet();
+    public SoyFileSetNode fileSet() { return fileSet; }
 
-    public abstract TemplateRegistry registry();
+    public TemplateRegistry registry() { return registry; }
+
+    private final SoyFileSetNode fileSet;
+    private final TemplateRegistry registry;
+
+    ParseResult(SoyFileSetNode fileSet, TemplateRegistry registry) {
+      this.fileSet = fileSet;
+      this.registry = registry;
+    }
   }
 
   /** The type registry to resolve type names. */

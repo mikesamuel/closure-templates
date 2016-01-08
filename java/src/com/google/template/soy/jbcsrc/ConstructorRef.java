@@ -38,21 +38,21 @@ import java.util.LinkedHashMap;
 /**
  * A reference to a type that can be constructed at runtime.
  */
-@AutoValue abstract class ConstructorRef {
-  /** 
+final class ConstructorRef {
+  /**
    * Returns a new {@link ConstructorRef} that refers to a constructor on the given type with the
    * given parameter types.
    */
   static ConstructorRef create(TypeInfo type, Method init) {
     checkArgument(init.getName().equals("<init>")  && init.getReturnType().equals(Type.VOID_TYPE),
         "'%s' is not a valid constructor", init);
-    return new AutoValue_ConstructorRef(
-        type, 
-        init, 
+    return new ConstructorRef(
+        type,
+        init,
         ImmutableList.copyOf(init.getArgumentTypes()));
   }
 
-  /** 
+  /**
    * Returns a new {@link ConstructorRef} that refers to a constructor on the given type with the
    * given parameter types.
    */
@@ -71,9 +71,9 @@ import java.util.LinkedHashMap;
       throw new RuntimeException(e);
     }
     Type constructorType = Type.getType(c);
-    
-    return new AutoValue_ConstructorRef(
-        type, 
+
+    return new ConstructorRef(
+        type,
         Method.getMethod(c),
         ImmutableList.copyOf(constructorType.getArgumentTypes()));
   }
@@ -85,11 +85,11 @@ import java.util.LinkedHashMap;
   static final ConstructorRef BASIC_PARAM_STORE = create(BasicParamStore.class, int.class);
   static final ConstructorRef ADVISING_STRING_BUILDER = create(AdvisingStringBuilder.class);
 
-  abstract TypeInfo instanceClass();
-  abstract Method method();
-  abstract ImmutableList<Type> argTypes();
+  TypeInfo instanceClass(){ return instanceClass; }
+  Method method(){ return method; }
+  ImmutableList<Type> argTypes() { return argTypes; }
 
-  /** 
+  /**
    * Returns an expression that constructs a new instance of {@link #instanceClass()} by calling
    * this constructor.
    */
@@ -97,7 +97,7 @@ import java.util.LinkedHashMap;
     return construct(Arrays.asList(args));
   }
 
-  /** 
+  /**
    * Returns an expression that constructs a new instance of {@link #instanceClass()} by calling
    * this constructor.
    */
@@ -115,5 +115,15 @@ import java.util.LinkedHashMap;
         mv.invokeConstructor(instanceClass().type(), method());
       }
     };
+  }
+
+  private final TypeInfo instanceClass;
+  private final Method method;
+  private final ImmutableList<Type> argTypes;
+
+  ConstructorRef(TypeInfo instanceClass, Method method, ImmutableList<Type> argTypes) {
+    this.instanceClass = instanceClass;
+    this.method = method;
+    this.argTypes = argTypes;
   }
 }

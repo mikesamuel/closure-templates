@@ -33,17 +33,25 @@ import java.util.List;
 final class ControlFlow {
   private ControlFlow() {}
 
-  @AutoValue abstract static class IfBlock {
+  static final class IfBlock {
     static IfBlock create(Expression cond, Statement block) {
       cond.checkAssignableTo(Type.BOOLEAN_TYPE);
-      return new AutoValue_ControlFlow_IfBlock(cond, block);
+      return new IfBlock(cond, block);
     }
-    abstract Expression condition();
-    abstract Statement block();
+    Expression condition() { return condition; }
+    Statement block() { return block; }
+
+    private final Expression condition;
+    private final Statement block;
+
+    IfBlock(Expression condition, Statement block) {
+      this.condition = condition;
+      this.block = block;
+    }
   }
 
   /**
-   * Returns a statement that encodes the given sequence of {@link IfBlock if blocks} as an 
+   * Returns a statement that encodes the given sequence of {@link IfBlock if blocks} as an
    * if-elseif-else chain.
    */
   static Statement ifElseChain(final List<IfBlock> ifs, final Optional<Statement> elseBlock) {

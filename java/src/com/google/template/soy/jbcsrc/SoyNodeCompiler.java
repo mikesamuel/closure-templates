@@ -167,12 +167,20 @@ final class SoyNodeCompiler extends AbstractReturningSoyNodeVisitor<Statement> {
     this.lazyClosureCompiler = checkNotNull(lazyClosureCompiler);
   }
 
-  @AutoValue abstract static class CompiledMethodBody {
+  static final class CompiledMethodBody {
     static CompiledMethodBody create(Statement body, int numDetaches) {
-      return new AutoValue_SoyNodeCompiler_CompiledMethodBody(body, numDetaches);
+      return new CompiledMethodBody(body, numDetaches);
     }
-    abstract Statement body();
-    abstract int numberOfDetachStates();
+    Statement body() { return body; }
+    int numberOfDetachStates() { return numberOfDetachStates; }
+
+    private final Statement body;
+    private final int numberOfDetachStates;
+
+    CompiledMethodBody(Statement body, int numberOfDetachStates) {
+      this.body = body;
+      this.numberOfDetachStates = numberOfDetachStates;
+    }
   }
 
   CompiledMethodBody compile(TemplateNode node) {
@@ -328,18 +336,30 @@ final class SoyNodeCompiler extends AbstractReturningSoyNodeVisitor<Statement> {
     };
   }
 
-  @AutoValue abstract static class CompiledRangeArgs {
+  static final class CompiledRangeArgs {
     /** Current loop index. */
-    abstract Expression currentIndex();
+    Expression currentIndex() { return currentIndex; }
 
     /** Where to end loop iteration, defaults to {@code 0}. */
-    abstract Expression limit();
+    Expression limit() { return limit; }
 
     /** This statement will increment the index by the loop stride. */
-    abstract Statement increment();
+    Statement increment() { return increment; }
 
     /** Statements that must have been run prior to using any of the above expressions. */
-    abstract ImmutableList<Statement> initStatements();
+    ImmutableList<Statement> initStatements() { return initStatements; }
+
+    private final Expression currentIndex;
+    private final Expression limit;
+    private final Statement increment;
+    private final ImmutableList<Statement> initStatements;
+
+    CompiledRangeArgs(Expression currentIndex, Expression limit, Statement increment, ImmutableList<Statement> initStatements) {
+      this.currentIndex = currentIndex;
+      this.limit = limit;
+      this.increment = increment;
+      this.initStatements = initStatements;
+    }
   }
 
   /**
@@ -404,7 +424,7 @@ final class SoyNodeCompiler extends AbstractReturningSoyNodeVisitor<Statement> {
     initStatements.add(variable.initializer().labelStart(detachPoint));
     limit = variable.local();
 
-    return new AutoValue_SoyNodeCompiler_CompiledRangeArgs(
+    return new CompiledRangeArgs(
         currentIndex.local(), limit, incrementCurrentIndex, initStatements.build());
   }
 

@@ -40,7 +40,7 @@ public final class BytecodeCompiler {
    * Compiles all the templates in the given registry.
    *
    * @param registry All the templates to compile
-   * @param developmentMode Whether or not we are in development mode.  In development mode we 
+   * @param developmentMode Whether or not we are in development mode.  In development mode we
    *    compile classes lazily
    * @param reporter The error reporter
    * @return CompiledTemplates or {@code absent()} if compilation fails, in which case errors will
@@ -57,7 +57,7 @@ public final class BytecodeCompiler {
     CompiledTemplateRegistry compilerRegistry = new CompiledTemplateRegistry(registry);
     if (developmentMode) {
       CompiledTemplates templates = new CompiledTemplates(
-          compilerRegistry.getTemplateNames(), 
+          compilerRegistry.getTemplateNames(),
           new CompilingClassLoader(compilerRegistry));
       // TODO(lukes): consider spawning a thread to load all the generated classes in the background
       return Optional.of(templates);
@@ -107,14 +107,27 @@ public final class BytecodeCompiler {
   }
 
   @AutoValue
-  abstract static class CompilationResult {
-    abstract List<ClassData> classes();
+  static final class CompilationResult {
+    final List<ClassData> classes;
+    final int numBytes;
+    final int numFields;
+    final int numDetachStates;
 
-    abstract int numBytes();
+    CompilationResult(
+        List<ClassData> classes,
+        int numBytes,
+        int numFields,
+        int numDetachStates) {
+      this.classes = classes;
+      this.numBytes = numBytes;
+      this.numFields = numFields;
+      this.numDetachStates = numDetachStates;
+    }
 
-    abstract int numFields();
-
-    abstract int numDetachStates();
+    List<ClassData> classes() { return classes; }
+    int numBytes() { return numBytes; }
+    int numFields() { return numFields; }
+    int numDetachStates() { return numDetachStates; }
   }
 
   /**
@@ -157,21 +170,21 @@ public final class BytecodeCompiler {
         }
       // Report unexpected errors and keep going to try to collect more.
       } catch (UnexpectedCompilerFailureException e) {
-        errorReporter.report(e.getOriginalLocation(), 
+        errorReporter.report(e.getOriginalLocation(),
             SoyError.of("Unexpected error while compiling template: ''{0}''\nSoy Stack:\n{1}"
-                + "\nCompiler Stack:{2}"), 
+                + "\nCompiler Stack:{2}"),
             name,
             e.printSoyStack(),
             Throwables.getStackTraceAsString(e));
-        
+
       } catch (Throwable t) {
-        errorReporter.report(template.getSourceLocation(), 
-            SoyError.of("Unexpected error while compiling template: ''{0}''\n{1}"), 
-            name, 
+        errorReporter.report(template.getSourceLocation(),
+            SoyError.of("Unexpected error while compiling template: ''{0}''\n{1}"),
+            name,
             Throwables.getStackTraceAsString(t));
       }
     }
-    return new AutoValue_BytecodeCompiler_CompilationResult(
+    return new CompilationResult(
         classes, numBytes, numFields, numDetachStates);
   }
 

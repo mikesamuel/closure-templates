@@ -23,6 +23,14 @@
     </developer>
   </developers>
 
+  <!-- HACK -->
+  <!-- repositories>
+    <repository>
+        <id>repository</id>
+        <url>file:///Users/msamuel/work/closure-templates/local-repository</url>
+    </repository>
+  </repositories -->
+
   <licenses>
     <license>
       <name>The Apache Software License, Version 2.0</name>
@@ -60,7 +68,7 @@
     <guice.version>3.0</guice.version>
     <guava.version>17.0</guava.version>
     <asm.version>5.0.3</asm.version>
-    <autovalue.version>1.0</autovalue.version>
+    <autovalue.version>1.1</autovalue.version>
     <soy.examples>${project.basedir}/examples</soy.examples>
     <soy.examples.out>${project.build.directory}/examples</soy.examples.out>
   </properties>
@@ -220,6 +228,12 @@
       <version>3.0</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.google.template.autoesc</groupId>
+      <artifactId>template-analysis</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -250,6 +264,13 @@
             </goals>
           </execution>
         </executions>
+        <dependencies>
+          <dependency>
+            <groupId>net.java.dev.javacc</groupId>
+            <artifactId>javacc</artifactId>
+            <version>6.1.2</version>
+          </dependency>
+        </dependencies>
       </plugin>
 
       <plugin>
@@ -266,7 +287,9 @@
         </configuration>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.19.1</version>
         <configuration>
           <systemPropertyVariables>
             <soy_jbcsrc_debug_mode>true</soy_jbcsrc_debug_mode>

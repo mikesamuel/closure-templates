@@ -22,16 +22,16 @@ import com.google.auto.value.AutoValue;
 
 import org.objectweb.asm.Type;
 
-/** 
- * A wrapper around {@link Type} that provides some additional methods and accessor caching. 
- * 
- * <p>Also, unlike {@link Type} this only represents the name of a class, it doesn't attempt to 
+/**
+ * A wrapper around {@link Type} that provides some additional methods and accessor caching.
+ *
+ * <p>Also, unlike {@link Type} this only represents the name of a class, it doesn't attempt to
  * represent primitive or array types or method descriptors.
  */
-@AutoValue abstract class TypeInfo {
+@AutoValue final class TypeInfo {
   static TypeInfo create(Class<?> clazz) {
     Type type = Type.getType(clazz);
-    return new AutoValue_TypeInfo(clazz.getName(), clazz.getSimpleName(), type.getInternalName(), 
+    return new TypeInfo(clazz.getName(), clazz.getSimpleName(), type.getInternalName(),
         type);
   }
 
@@ -42,25 +42,40 @@ import org.objectweb.asm.Type;
     // This logic is specified by Class.getSimpleName()
     String packageLessName = className.substring(className.lastIndexOf('.') + 1);
     String simpleName = packageLessName.substring(packageLessName.lastIndexOf('$') + 1);
-    return new AutoValue_TypeInfo(
+    return new TypeInfo(
         className,
         simpleName,
         type.getInternalName(),
         type);
   }
 
-  abstract String className();
-  abstract String simpleName();
-  abstract String internalName();
-  abstract Type type();
+  String className() { return className; }
+  String simpleName() { return simpleName; }
+  String internalName() { return internalName; }
+  Type type() { return type; }
 
+  private final String className;
+  private final String simpleName;
+  private final String internalName;
+  private final Type type;
+
+  TypeInfo(
+      String className,
+      String simpleName,
+      String internalName,
+      Type type) {
+    this.className = className;
+    this.simpleName = simpleName;
+    this.internalName = internalName;
+    this.type = type;
+  }
   /** Returns a new {@link TypeInfo} for an inner class of this class. */
   final TypeInfo innerClass(String simpleName) {
-    checkArgument(simpleName.indexOf('$') == -1, 
+    checkArgument(simpleName.indexOf('$') == -1,
         "Simple names shouldn't contain '$': %s", simpleName);
     String className = className() + '$' + simpleName;
     String internalName = internalName() + '$' + simpleName;
     Type type = Type.getObjectType(internalName);
-    return new AutoValue_TypeInfo(className, simpleName, internalName, type);
+    return new TypeInfo(className, simpleName, internalName, type);
   }
 }

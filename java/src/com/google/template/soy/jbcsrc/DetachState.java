@@ -34,20 +34,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * An object that manages generating the logic to save and restore execution state to enable 
+ * An object that manages generating the logic to save and restore execution state to enable
  * rendering to pause partway through a template.
  *
  * <p>First, definitions:
  * <dl>
  *     <dt>Detach
- *     <dd>A 'detach' is the act of saving local state and returning control to our caller. 
+ *     <dd>A 'detach' is the act of saving local state and returning control to our caller.
  *         Logically, we are saving a continuation.
  *
  *     <dt>Detachable
  *     <dd>An operation that may conditionally detach.
  *
  *     <dt>Reattach
- *     <dd>A 'reattach' is the act of restoring state and jumping back to the location just before 
+ *     <dd>A 'reattach' is the act of restoring state and jumping back to the location just before
  *         the original 'detach'.  We are calling back into our saved 'continuation'.
  *
  *     <dt>Reattach Point
@@ -104,7 +104,7 @@ final class DetachState implements ExpressionDetacher.Factory {
     this.variables = variables;
     this.thisExpr = thisExpr;
     this.stateField = stateField;
-    // Add a null at the head of the list so that the reattaches in the list match their state 
+    // Add a null at the head of the list so that the reattaches in the list match their state
     // indices  e.g. reattach.get(2) is the reattach for state 2.  Because 0 is a special case for
     // 'initial call'.
     reattaches.add(null);
@@ -171,12 +171,12 @@ final class DetachState implements ExpressionDetacher.Factory {
     }
     final Label reattachPoint = new Label();
     final SaveRestoreState saveRestoreState = variables.saveRestoreState();
-    
+
     Statement restore = saveRestoreState.restore();
     int state = addState(reattachPoint, restore);
     final Expression isSoftLimited = appendable.softLimitReached();
     final Statement returnLimited = returnExpression(MethodRef.RENDER_RESULT_LIMITED.invoke());
-    final Statement saveState = 
+    final Statement saveState =
         stateField.putInstanceField(thisExpr, BytecodeUtils.constant(state));
     return new Statement() {
       @Override void doGen(CodeBuilder adapter) {
@@ -186,7 +186,7 @@ final class DetachState implements ExpressionDetacher.Factory {
         saveRestoreState.save().gen(adapter);  // save locals
         saveState.gen(adapter);  // save the state field
         returnLimited.gen(adapter);
-        // Note, the reattach point for 'limited' is _after_ the check.  That means we do not 
+        // Note, the reattach point for 'limited' is _after_ the check.  That means we do not
         // recheck the limit state.  So if a caller calls us back without freeing any buffer we
         // will print more before checking again.  This is fine, because our caller is breaking the
         // contract.
@@ -197,11 +197,11 @@ final class DetachState implements ExpressionDetacher.Factory {
 
   /**
    * Generate detach logic for calls.
-   * 
-   * <p>Calls are a little different due to a desire to minimize the cost of detaches. We assume 
+   *
+   * <p>Calls are a little different due to a desire to minimize the cost of detaches. We assume
    * that if a given call site detaches once, it is more likely to detach multiple times. So we
    * generate code that looks like:   <pre>{@code
-   * 
+   *
    * RenderResult initialResult = template.render(appendable, renderContext);
    * if (!initialResult.isDone()) {
    *   // save all fields
@@ -223,12 +223,12 @@ final class DetachState implements ExpressionDetacher.Factory {
    * }
    * END:
    * }</pre>
-   * 
+   *
    * <p>With this technique we save re-running the save-restore logic for multiple detaches from
    * the same call site.  This should be especially useful for top level templates.
-   * 
+   *
    * @param callRender an Expression that can generate code to call the render method, should be
-   *     safe to generate more than once. 
+   *     safe to generate more than once.
    */
   Statement detachForRender(final Expression callRender) {
     checkArgument(callRender.resultType().equals(RENDER_RESULT_TYPE));
@@ -236,7 +236,7 @@ final class DetachState implements ExpressionDetacher.Factory {
     final SaveRestoreState saveRestoreState = variables.saveRestoreState();
     // We pass NULL statement for the restore logic since we handle that ourselves below
     int state = addState(reattachRender, Statement.NULL_STATEMENT);
-    final Statement saveState = 
+    final Statement saveState =
         stateField.putInstanceField(thisExpr, BytecodeUtils.constant(state));
     return new Statement() {
       @Override void doGen(CodeBuilder adapter) {
@@ -260,7 +260,7 @@ final class DetachState implements ExpressionDetacher.Factory {
         Label restore = new Label();
         adapter.ifZCmp(Opcodes.IFNE, restore);                          // Stack: RR
         // no need to save or restore anything
-        adapter.returnValue(); 
+        adapter.returnValue();
         adapter.mark(restore);                                          // Stack: RR
         saveRestoreState.restore().gen(adapter);
         adapter.mark(end);                                              // Stack: RR
@@ -271,12 +271,12 @@ final class DetachState implements ExpressionDetacher.Factory {
 
   /**
    * Returns a statement that generates the reattach jump table.
-   * 
+   *
    * <p>Note: This statement should be the <em>first</em> statement in any detachable method.
    */
   Statement generateReattachTable() {
     final Expression readField = stateField.accessor(thisExpr);
-    final Statement defaultCase = 
+    final Statement defaultCase =
         Statement.throwExpression(MethodRef.RUNTIME_UNEXPECTED_STATE_ERROR.invoke(readField));
     return new Statement() {
       @Override void doGen(final CodeBuilder adapter) {
@@ -325,16 +325,24 @@ final class DetachState implements ExpressionDetacher.Factory {
     return state;
   }
 
-  @AutoValue abstract static class ReattachState {
+  static final class ReattachState {
     static ReattachState create(Label reattachPoint, Statement restore) {
-      return new AutoValue_DetachState_ReattachState(reattachPoint, restore);
+      return new ReattachState(reattachPoint, restore);
     }
 
     /** The label where control should resume when continuing. */
-    abstract Label reattachPoint();
-    
+    Label reattachPoint() { return reattachPoint; }
+
     /** The statement that restores the state of local variables so we can resume execution. */
-    abstract Statement restoreStatement();
+    Statement restoreStatement() { return restoreStatement; }
+
+    private final Label reattachPoint;
+    private final Statement restoreStatement;
+
+    ReattachState(Label reattachPoint, Statement restoreStatement) {
+      this.reattachPoint = reattachPoint;
+      this.restoreStatement = restoreStatement;
+    }
   }
 
   /** Returns the number of unique detach/reattach points. */

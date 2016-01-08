@@ -53,7 +53,7 @@ public final class ForNode extends AbstractBlockCommandNode
   /**
    * The arguments to a {@code range(...)} expression in a {@code {for ...}} loop statement.
    */
-  @AutoValue public abstract static class RangeArgs {
+  public static final class RangeArgs {
     static final RangeArgs ERROR = create(
         Optional.<ExprRootNode>absent(),
         new ExprRootNode(VarRefNode.ERROR),
@@ -61,29 +61,27 @@ public final class ForNode extends AbstractBlockCommandNode
 
     static RangeArgs create(Optional<ExprRootNode> start,
         ExprRootNode limit, Optional<ExprRootNode> increment) {
-      return new AutoValue_ForNode_RangeArgs(start, limit, increment);
+      return new RangeArgs(start, limit, increment);
     }
-
-    RangeArgs() {}
 
     /**
      * The expression for the iteration start point.
      *
      * <p>This is optional, the default beginning of iteration is {@code 0} if this is not set.
      */
-    public abstract Optional<ExprRootNode> start();
+    public Optional<ExprRootNode> start() { return start; }
 
     /**
      * The expression for the iteration end point.  This is interpreted as an exclusive limit.
      */
-    public abstract ExprRootNode limit();
+    public ExprRootNode limit() { return limit; }
 
     /**
      * The expression for the iteration increment.
      *
      * <p>This is optional, the default increment {@code 1} if this is not set.
      */
-    public abstract Optional<ExprRootNode> increment();
+    public Optional<ExprRootNode> increment() { return increment; }
 
     private RangeArgs copy(CopyState copyState) {
       return create(
@@ -94,6 +92,16 @@ public final class ForNode extends AbstractBlockCommandNode
           increment().isPresent()
               ? Optional.of(increment().get().copy(copyState))
               : Optional.<ExprRootNode>absent());
+    }
+
+    private final Optional<ExprRootNode> start;
+    private final ExprRootNode limit;
+    private final Optional<ExprRootNode> increment;
+
+    RangeArgs(Optional<ExprRootNode> start, ExprRootNode limit, Optional<ExprRootNode> increment) {
+      this.start = start;
+      this.limit = limit;
+      this.increment = increment;
     }
   }
 

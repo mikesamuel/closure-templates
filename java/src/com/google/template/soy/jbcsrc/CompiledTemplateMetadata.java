@@ -34,7 +34,7 @@ import org.objectweb.asm.commons.Method;
  * <p>This should contain basic information about a single template that will be useful for
  * generating that template as well as calls to the template.
  */
-@AutoValue abstract class CompiledTemplateMetadata {
+@AutoValue final class CompiledTemplateMetadata {
   /**
    * The {@link Method} signature of all generated constructors for the {@link CompiledTemplate}
    * classes.
@@ -43,10 +43,10 @@ import org.objectweb.asm.commons.Method;
       new Method(
           "<init>", Type.getMethodDescriptor(Type.VOID_TYPE, SOY_RECORD_TYPE, SOY_RECORD_TYPE));
 
-  /** 
-   * The {@link Method} signature of the 
-   * {@link CompiledTemplate#render(AdvisingAppendable, RenderContext)}  
-   * method. 
+  /**
+   * The {@link Method} signature of the
+   * {@link CompiledTemplate#render(AdvisingAppendable, RenderContext)}
+   * method.
    */
   private static final Method RENDER_METHOD;
 
@@ -64,27 +64,43 @@ import org.objectweb.asm.commons.Method;
   static CompiledTemplateMetadata create(String templateName, TemplateNode node) {
     String className = Names.javaClassNameFromSoyTemplateName(templateName);
     TypeInfo type = TypeInfo.create(className);
-    return new AutoValue_CompiledTemplateMetadata(
+    return new CompiledTemplateMetadata(
         ConstructorRef.create(type, GENERATED_CONSTRUCTOR),
         MethodRef.createInstanceMethod(type, RENDER_METHOD).asNonNullable(),
-        type, 
+        type,
         node);
   }
 
-  /** 
+  /**
    * The template constructor.
-   * 
-   * <p>The constructor has the same interface as 
+   *
+   * <p>The constructor has the same interface as
    * {@link com.google.template.soy.jbcsrc.shared.CompiledTemplate.Factory#create}
    */
-  abstract ConstructorRef constructor();
-  
+  ConstructorRef constructor() { return constructor; }
+
   /** The {@link CompiledTemplate#render(AdvisingAppendable, RenderContext)} method. */
-  abstract MethodRef renderMethod();
+  MethodRef renderMethod() { return renderMethod; }
 
   /** The name of the compiled template. */
-  abstract TypeInfo typeInfo();
+  TypeInfo typeInfo() { return typeInfo; }
 
   /** The actual template. */
-  abstract TemplateNode node();
+  TemplateNode node() { return node; }
+
+  final ConstructorRef constructor;
+  final MethodRef renderMethod;
+  final TypeInfo typeInfo;
+  final TemplateNode node;
+
+  CompiledTemplateMetadata(
+      ConstructorRef constructor,
+      MethodRef renderMethod,
+      TypeInfo typeInfo,
+      TemplateNode node) {
+    this.constructor = constructor;
+    this.renderMethod = renderMethod;
+    this.typeInfo = typeInfo;
+    this.node = node;
+  }
 }

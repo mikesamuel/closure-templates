@@ -52,7 +52,7 @@ import javax.annotation.Nullable;
 
 /**
  * A variable in this set is a SoyValue that must be saved/restored.  This means each variable has:
- * 
+ *
  * <ul>
  *     <li>A {@link FieldRef} that can be used to define the field.
  *     <li>A {@link Statement} that can be used to save the field.
@@ -75,21 +75,21 @@ final class VariableSet {
      * Creates a new 'synthetic' variable.  A synthetic variable is a variable that is
      * introduced by the compiler rather than a user defined name.
      *
-     * @param name A proposed name for the variable, the actual variable name may be modified to 
+     * @param name A proposed name for the variable, the actual variable name may be modified to
      *     ensure uniqueness
      * @param initializer The expression that can be used to derive the initial value.  Note, this
      *     expression must be save to gen() more than once if {@code isDerived} is {@code true}
-     * @param strategy Set this if the value of the variable is trivially derivable from other 
+     * @param strategy Set this if the value of the variable is trivially derivable from other
      *     variables already defined.
      */
-    abstract Variable createSynthetic(SyntheticVarName name, Expression initializer, 
+    abstract Variable createSynthetic(SyntheticVarName name, Expression initializer,
         SaveStrategy strategy);
 
     /**
      * Creates a new 'synthetic' variable.  A synthetic variable is a variable that is
      * introduced by the compiler rather than a user defined name.
      *
-     * @param name The name of the variable, the name is assumed to be unique (enforced by the 
+     * @param name The name of the variable, the name is assumed to be unique (enforced by the
      *     ResolveNamesVisitor).
      * @param initializer The expression that can be used to initialize the variable
      */
@@ -104,17 +104,17 @@ final class VariableSet {
 
   /**
    * A sufficiently unique identifier.
-   * 
+   *
    * <p>This key will uniquely identify a currently 'active' variable, but may not be unique over
    * all possible variables.
    */
-  @AutoValue abstract static class VarKey {
+  @AutoValue static final class VarKey {
     enum Kind {
-      /** 
+      /**
        * Includes @param, @inject, {let..}, and loop vars.
-       * 
+       *
        * <p>Uniqueness of local variable names is enforced by the ResolveNamesVisitor pass, we
-       * just need uniqueness for the field names 
+       * just need uniqueness for the field names
        */
       USER_DEFINED,
       /**
@@ -126,11 +126,19 @@ final class VariableSet {
       SYNTHETIC;
     }
     static VarKey create(Kind synthetic, String proposedName) {
-      return new AutoValue_VariableSet_VarKey(synthetic, proposedName);
+      return new VarKey(synthetic, proposedName);
     }
 
-    abstract Kind kind();
-    abstract String name();
+    Kind kind() { return kind; }
+    String name() { return name; }
+
+    private final Kind kind;
+    private final String name;
+
+    VarKey(Kind kind, String name) {
+      this.kind = kind;
+      this.name = name;
+    }
   }
 
   /**
@@ -191,7 +199,7 @@ final class VariableSet {
       }
     }
   }
-  
+
   private final class DerivedVariable extends Variable {
     private DerivedVariable(Expression initExpression, LocalVariable local) {
       super(initExpression, local);
@@ -207,12 +215,22 @@ final class VariableSet {
 
     @Override void maybeDefineField(ClassVisitor writer) {}
   }
-  
-  @AutoValue
-  abstract static class StaticFieldVariable {
-    abstract FieldRef field();
 
-    abstract Expression initializer();
+  @AutoValue
+  static final class StaticFieldVariable {
+    FieldRef field() { return field; }
+
+    Expression initializer() { return initializer; }
+
+    private final FieldRef field;
+    private final Expression initializer;
+
+    StaticFieldVariable(
+        FieldRef field,
+        Expression initializer) {
+      this.field = field;
+      this.initializer = initializer;
+    }
   }
 
   private final List<Variable> allVariables = new ArrayList<>();
@@ -223,9 +241,9 @@ final class VariableSet {
   private final TypeInfo owner;
   private final LocalVariable thisVar;
   // Allocated lazily
-  @Nullable private FieldRef currentCalleeField; 
+  @Nullable private FieldRef currentCalleeField;
   // Allocated lazily
-  @Nullable private FieldRef currentRendereeField; 
+  @Nullable private FieldRef currentRendereeField;
   // Allocated lazily
   @Nullable private FieldRef tempBufferField;
   // Allocated lazily
@@ -300,7 +318,7 @@ final class VariableSet {
         };
       }
 
-      private Variable doCreate(String name, Label start, Label end, Expression initExpr, 
+      private Variable doCreate(String name, Label start, Label end, Expression initExpr,
           VarKey key, SaveStrategy strategy) {
         int index = reserveSlotFor(initExpr.resultType());
         LocalVariable local =
@@ -330,7 +348,7 @@ final class VariableSet {
     }
   }
 
-  
+
   /**
    * Adds a private static final field and returns a reference to it.
    *
@@ -341,22 +359,22 @@ final class VariableSet {
   FieldRef addStaticField(String proposedName, Expression initializer) {
     String name = fieldNames.generateName(proposedName);
     FieldRef ref =
-        new AutoValue_FieldRef(
+        new FieldRef(
             owner,
             name,
             initializer.resultType(),
             Opcodes.ACC_STATIC | Opcodes.ACC_FINAL | Opcodes.ACC_PRIVATE,
             !initializer.isNonNullable());
-    staticFields.add(new AutoValue_VariableSet_StaticFieldVariable(ref, initializer));
+    staticFields.add(new StaticFieldVariable(ref, initializer));
     return ref;
   }
 
   // TODO(lukes): consider moving all these optional 'one per template' fields to a different object
   // for management.
 
-  /** 
+  /**
    * Defines all the fields necessary for the registered variables.
-   * 
+   *
    * @return a statement to initialize the fields
    */
   @CheckReturnValue Statement defineFields(ClassVisitor writer) {
@@ -400,7 +418,7 @@ final class VariableSet {
     }
     return Statement.concat(initializers);
   }
-  
+
   /**
    * Adds definitions for all the static fields managed by this variable set and adds a
    * {@code <clinit>} method to the given class.
@@ -422,14 +440,14 @@ final class VariableSet {
 
   /**
    * Returns the field that holds the current callee template.
-   * 
+   *
    * <p>Unlike normal variables the VariableSet doesn't maintain responsibility for saving and
    * restoring the current callee to a local.
    */
   FieldRef getCurrentCalleeField() {
     FieldRef local = currentCalleeField;
     if (local == null) {
-      local = currentCalleeField = 
+      local = currentCalleeField =
           FieldRef.createField(owner, CURRENT_CALLEE_FIELD, CompiledTemplate.class);
     }
     return local;
@@ -471,14 +489,14 @@ final class VariableSet {
 
   /**
    * Returns the field that holds the currently rendering SoyValueProvider.
-   * 
+   *
    * <p>Unlike normal variables the VariableSet doesn't maintain responsibility for saving and
    * restoring the current renderee to a local.
    */
   FieldRef getCurrentRenderee() {
     FieldRef local = currentRendereeField;
     if (local == null) {
-      local = currentRendereeField = 
+      local = currentRendereeField =
           FieldRef.createField(owner, CURRENT_RENDEREE_FIELD, SoyValueProvider.class);
     }
     return local;
@@ -521,9 +539,19 @@ final class VariableSet {
   }
 
   /** Statements for saving and restoring local variables in class fields. */
-  @AutoValue abstract static class SaveRestoreState {
-    abstract Statement save();
-    abstract Statement restore();
+  @AutoValue static final class SaveRestoreState {
+    Statement save() { return save; }
+    Statement restore() { return restore; }
+
+    private final Statement save;
+    private final Statement restore;
+
+    SaveRestoreState(
+        Statement save,
+        Statement restore) {
+      this.save = save;
+      this.restore = restore;
+    }
   }
 
   /** Returns a {@link SaveRestoreState} for the current state of the variable set. */
@@ -540,7 +568,7 @@ final class VariableSet {
         restores.add(var.restore());
       }
     }
-    return new AutoValue_VariableSet_SaveRestoreState(
+    return new SaveRestoreState(
         Statement.concat(saves), Statement.concat(restores));
   }
 

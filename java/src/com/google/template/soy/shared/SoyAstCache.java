@@ -44,19 +44,25 @@ import javax.inject.Inject;
  */
 public final class SoyAstCache {
   /** A {@link SoyFileNode} with an associated {@link Version}. */
-  @AutoValue public abstract static class VersionedFile {
+  public static final class VersionedFile {
     public static VersionedFile of(SoyFileNode file, Version version) {
-      return new AutoValue_SoyAstCache_VersionedFile(file, version);
+      return new VersionedFile(file, version);
     }
 
-    VersionedFile() {}
-
-    public abstract SoyFileNode file();
-    public abstract Version version();
+    public SoyFileNode file() { return file; }
+    public Version version() { return version; }
 
     /** Make a defensive copy. */
     private VersionedFile copy() {
-      return new AutoValue_SoyAstCache_VersionedFile(SoytreeUtils.cloneNode(file()), version());
+      return new VersionedFile(SoytreeUtils.cloneNode(file()), version());
+    }
+
+    private final SoyFileNode file;
+    private final Version version;
+
+    VersionedFile(SoyFileNode file, Version version) {
+      this.file = file;
+      this.version = version;
     }
   }
 

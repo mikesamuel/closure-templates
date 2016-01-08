@@ -25,17 +25,29 @@ import com.google.template.soy.soytree.SoyFileSetNode;
 /**
  * All context needed to perform conformance checks.
  */
-@AutoValue public abstract class ConformanceInput {
+@AutoValue public class ConformanceInput {
 
   public static ConformanceInput create(
       SoyFileSetNode soyTree, ImmutableList<SlicedRawTextNode> slicedRawTextNodes) {
-    return new AutoValue_ConformanceInput(
+    return new ConformanceInput(
         Preconditions.checkNotNull(soyTree),
         Preconditions.checkNotNull(slicedRawTextNodes));
   }
 
-  public abstract SoyFileSetNode getSoyTree();
+  public SoyFileSetNode getSoyTree() { return soyTree; }
 
-  public abstract ImmutableList<SlicedRawTextNode> getSlicedRawTextNodes();
+  public ImmutableList<SlicedRawTextNode> getSlicedRawTextNodes() {
+    return slicedRawTextNodes;
+  }
+
+  private final SoyFileSetNode soyTree;
+  private final ImmutableList<SlicedRawTextNode> slicedRawTextNodes;
+
+  ConformanceInput(
+      SoyFileSetNode soyTree,
+      ImmutableList<SlicedRawTextNode> slicedRawTextNodes) {
+    this.soyTree = soyTree;
+    this.slicedRawTextNodes = slicedRawTextNodes;
+  }
 }
 

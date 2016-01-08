@@ -45,20 +45,26 @@ public final class TemplateDelegateNode extends TemplateNode implements ExprHold
    *
    * <p> Important: Do not use outside of Soy code (treat as superpackage-private).
    */
-  @AutoValue public abstract static class DelTemplateKey {
+  public static final class DelTemplateKey {
 
     public static DelTemplateKey create(String name, String variant) {
-      return new AutoValue_TemplateDelegateNode_DelTemplateKey(name, variant);
+      return new DelTemplateKey(name, variant);
     }
 
-    DelTemplateKey() {}
-
-    public abstract String name();
-    public abstract String variant();
+    public String name() { return name; }
+    public String variant() { return variant; }
 
     @Override public String toString() {
       return name() + (variant().isEmpty() ? "" : ":" + variant());
       }
+
+    private final String name;
+    private final String variant;
+
+    DelTemplateKey(String name, String variant) {
+      this.name = name;
+      this.variant = variant;
+    }
   }
 
   /** The delegate template name. */

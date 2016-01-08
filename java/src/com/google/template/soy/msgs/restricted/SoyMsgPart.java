@@ -30,16 +30,22 @@ public abstract class SoyMsgPart {
   // instanceof tests.  Consider introducing a visitor api or an enum for fast switching.
 
   /** A case in a plural or 'select' msg part. */
-  @AutoValue public abstract static class Case<T> {
+  public static final class Case<T> {
     public static <T> Case<T> create(T spec, Iterable<? extends SoyMsgPart> parts) {
-      return new AutoValue_SoyMsgPart_Case<>(spec, ImmutableList.copyOf(parts));
+      return new Case<>(spec, ImmutableList.copyOf(parts));
     }
 
-    Case() {}
-
     // null means default case
-    @Nullable public abstract T spec();
-    public abstract ImmutableList<SoyMsgPart> parts();
+    @Nullable public T spec() { return spec; }
+    public ImmutableList<SoyMsgPart> parts() { return parts; }
+
+    private final T spec;
+    private final ImmutableList<SoyMsgPart> parts;
+
+    Case(T spec, ImmutableList<SoyMsgPart> parts) {
+      this.spec = spec;
+      this.parts = parts;
+    }
   }
 
   // No methods.

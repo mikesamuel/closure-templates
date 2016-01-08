@@ -176,15 +176,15 @@ final class HelperFunctions {
   /**
    * A strategy for reading a field from a container.
    */
-  @AutoValue abstract static class FieldAccessStrategy {
+  static final class FieldAccessStrategy {
     static FieldAccessStrategy create(FieldAccessOperator op, String fieldKey) {
-      return new AutoValue_HelperFunctions_FieldAccessStrategy(op, fieldKey);
+      return new FieldAccessStrategy(op, fieldKey);
     }
 
     /** Specifies the kind of JS that is used to read the field. */
-    abstract FieldAccessOperator op();
+    FieldAccessOperator op() { return op; }
     /** A string used in conjunction with op to generate a JS expression that reads the field. */
-    abstract String fieldKey();
+    String fieldKey() { return fieldKey; }
 
 
     /** An expression that does the read. */
@@ -203,10 +203,18 @@ final class HelperFunctions {
           if (!BaseUtils.isIdentifier(fieldKey())) {
             throw new AssertionError(fieldKey());
           }
-          return new JsExpr(container.getText() + "." + fieldKey() + "()", 
+          return new JsExpr(container.getText() + "." + fieldKey() + "()",
               container.getPrecedence());
       }
       throw new AssertionError("unexpected op " + op());
+    }
+
+    private final FieldAccessOperator op;
+    private final String fieldKey;
+
+    FieldAccessStrategy(FieldAccessOperator op, String fieldKey) {
+      this.op = op;
+      this.fieldKey = fieldKey;
     }
   }
 

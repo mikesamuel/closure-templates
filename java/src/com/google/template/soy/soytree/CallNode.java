@@ -116,32 +116,38 @@ public abstract class CallNode extends AbstractParentCommandNode<CallParamNode>
   }
 
   /** A Parsed {@code data} attribute. */
-  @AutoValue public abstract static class DataAttribute {
+  public static final class DataAttribute {
     public static DataAttribute none() {
-      return new AutoValue_CallNode_DataAttribute(false, null);
+      return new DataAttribute(false, null);
     }
     public static DataAttribute all() {
-      return new AutoValue_CallNode_DataAttribute(true, null);
+      return new DataAttribute(true, null);
     }
     public static DataAttribute expr(ExprRootNode expr) {
-      return new AutoValue_CallNode_DataAttribute(true, expr);
+      return new DataAttribute(true, expr);
     }
 
-    DataAttribute() {}
+    final boolean isPassingData;
+    final ExprRootNode dataExpr;
 
-    public abstract boolean isPassingData();
+    DataAttribute(boolean isPassingData, ExprRootNode dataExpr) {
+      this.isPassingData = isPassingData;
+      this.dataExpr = dataExpr;
+    }
+
+    public boolean isPassingData() { return isPassingData; }
 
     public final boolean isPassingAllData() {
       return isPassingData() && dataExpr() == null;
     }
 
-    @Nullable public abstract ExprRootNode dataExpr();
+    @Nullable public ExprRootNode dataExpr() { return dataExpr; }
 
     DataAttribute copy(CopyState copyState) {
       if (dataExpr() == null) {
         return this;
       }
-      return new AutoValue_CallNode_DataAttribute(true, dataExpr().copy(copyState));
+      return new DataAttribute(true, dataExpr().copy(copyState));
     }
   }
 

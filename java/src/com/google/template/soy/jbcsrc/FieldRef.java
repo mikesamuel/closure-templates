@@ -35,7 +35,7 @@ import java.lang.reflect.Modifier;
 /**
  * Representation of a field in a java class.
  */
-@AutoValue abstract class FieldRef {
+@AutoValue final class FieldRef {
   static final FieldRef BOOLEAN_DATA_FALSE = staticFieldReference(BooleanData.class, "FALSE");
   static final FieldRef BOOLEAN_DATA_TRUE = staticFieldReference(BooleanData.class, "TRUE");
   static final FieldRef NULL_PROVIDER = staticFieldReference(Runtime.class, "NULL_PROVIDER");
@@ -46,7 +46,7 @@ import java.lang.reflect.Modifier;
   }
 
   static FieldRef createFinalField(TypeInfo owner, String name, Type type) {
-    return new AutoValue_FieldRef(
+    return new FieldRef(
         owner,
         name,
         type,
@@ -67,7 +67,7 @@ import java.lang.reflect.Modifier;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-    return new AutoValue_FieldRef(
+    return new FieldRef(
         TypeInfo.create(owner), name, Type.getType(fieldType), modifiers, !fieldType.isPrimitive());
   }
 
@@ -85,7 +85,7 @@ import java.lang.reflect.Modifier;
     if (!Modifier.isStatic(field.getModifiers())) {
       throw new IllegalStateException("Field: " + field + " is not static");
     }
-    return new AutoValue_FieldRef(
+    return new FieldRef(
         TypeInfo.create(field.getDeclaringClass()), field.getName(), Type.getType(field.getType()),
         Opcodes.ACC_STATIC,
         false /** Assume all static field refs are non-null. */);
@@ -100,21 +100,41 @@ import java.lang.reflect.Modifier;
   }
 
   static FieldRef createField(TypeInfo owner, String name, Type type) {
-    return new AutoValue_FieldRef(
+    return new FieldRef(
         owner, name, type, Opcodes.ACC_PRIVATE, !BytecodeUtils.isPrimitive(type));
   }
-  
-  /** The type that owns this field. */
-  abstract TypeInfo owner();
-  abstract String name();
-  abstract Type type();
 
-  /** 
+  /** The type that owns this field. */
+  TypeInfo owner() { return owner; }
+  String name() { return name; }
+  Type type() { return type; }
+
+  /**
    * The field access flags.  This is a bit set of things like {@link Opcodes#ACC_STATIC}
    * and {@link Opcodes#ACC_PRIVATE}.
    */
-  abstract int accessFlags();
-  abstract boolean isNullable();
+  int accessFlags() { return accessFlags; }
+  boolean isNullable() { return isNullable; }
+
+  final TypeInfo owner;
+  final String name;
+  final Type type;
+  final int accessFlags;
+  final boolean isNullable;
+
+  FieldRef(
+      TypeInfo owner,
+      String name,
+      Type type,
+      int accessFlags,
+      boolean isNullable) {
+    this.owner = owner;
+    this.name = name;
+    this.type = type;
+    this.accessFlags = accessFlags;
+    this.isNullable = isNullable;
+  }
+
 
   final boolean isStatic() {
     return (accessFlags() & Opcodes.ACC_STATIC) != 0;
@@ -125,16 +145,16 @@ import java.lang.reflect.Modifier;
     cv.visitField(
         accessFlags(),
         name(),
-        type().getDescriptor(), 
-        null /* no generic signature */, 
+        type().getDescriptor(),
+        null /* no generic signature */,
         null /* no initializer */);
   }
-  
+
   FieldRef asNonNull() {
     if (!isNullable() || BytecodeUtils.isPrimitive(type())) {
       return this;
     }
-    return new AutoValue_FieldRef(owner(), name(), type(), accessFlags(), false);
+    return new FieldRef(owner(), name(), type(), accessFlags(), false);
   }
 
   /**
@@ -173,11 +193,11 @@ import java.lang.reflect.Modifier;
       }
     };
   }
-  
+
   /**
-   * Returns a {@link Statement} that stores the {@code value} in this field on the given 
+   * Returns a {@link Statement} that stores the {@code value} in this field on the given
    * {@code instance}.
-   * 
+   *
    * @throws IllegalStateException if this is a static field
    */
   Statement putInstanceField(final Expression instance, final Expression value) {
@@ -213,7 +233,7 @@ import java.lang.reflect.Modifier;
 
   /**
    * Adds code to place the top item of the stack into this field.
-   * 
+   *
    * @throws IllegalStateException if this is a static field
    */
   void putUnchecked(CodeBuilder adapter) {

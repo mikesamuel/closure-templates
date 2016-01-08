@@ -66,65 +66,65 @@ import java.util.Map;
 /**
  * A reference to a method that can be called at runtime.
  */
-@AutoValue abstract class MethodRef {
+final class MethodRef {
   static final MethodRef ADVISING_STRING_BUILDER_GET_AND_CLEAR =
       forMethod(AdvisingStringBuilder.class, "getAndClearBuffer").asNonNullable();
-  
+
   static final MethodRef ARRAY_LIST_ADD = forMethod(ArrayList.class, "add", Object.class);
-  
+
   static final MethodRef BOOLEAN_DATA_FOR_VALUE =
       forMethod(BooleanData.class, "forValue", boolean.class).asNonNullable();
-  
+
   static final MethodRef BOOLEAN_VALUE = forMethod(Boolean.class, "booleanValue").asCheap();
   static final MethodRef BOOLEAN_TO_STRING =
       forMethod(Boolean.class, "toString", boolean.class).asCheap().asNonNullable();
-  
+
   static final MethodRef COMPILED_TEMPLATE_RENDER =
       forMethod(CompiledTemplate.class, "render", AdvisingAppendable.class, RenderContext.class)
           .asNonNullable();
-  
+
   static final MethodRef DICT_IMPL_FOR_PROVIDER_MAP =
       forMethod(DictImpl.class, "forProviderMap", Map.class).asNonNullable();
-  
+
   static final MethodRef DOUBLE_TO_STRING =
       forMethod(Double.class, "toString", double.class).asNonNullable();
-  
+
   static final MethodRef DOUBLE_VALUE = forMethod(Number.class, "doubleValue").asCheap();
-  
+
   static final MethodRef EQUALS = forMethod(Object.class, "equals", Object.class);
-  
+
   static final MethodRef FLOAT_DATA_FOR_VALUE =
       forMethod(FloatData.class, "forValue", double.class).asNonNullable();
-  
+
   static final MethodRef IMMUTABLE_LIST_OF =
       forMethod(ImmutableList.class, "of").asCheap().asNonNullable();
-  
+
   static final MethodRef IMMUTABLE_MAP_OF =
       forMethod(ImmutableMap.class, "of").asCheap().asNonNullable();
-  
+
   static final MethodRef INTEGER_DATA_FOR_VALUE =
       forMethod(IntegerData.class, "forValue", long.class).asNonNullable();
-  
+
   static final MethodRef INTEGER_TO_STRING =
       forMethod(Integer.class, "toString", int.class).asNonNullable();
-  
+
   static final MethodRef INTS_CHECKED_CAST =
       forMethod(Ints.class, "checkedCast", long.class).asCheap();
-  
+
   static final MethodRef LINKED_HASH_MAP_CLEAR = create(LinkedHashMap.class, "clear");
-  
+
   static final MethodRef LINKED_HASH_MAP_PUT =
       create(LinkedHashMap.class, "put", Object.class, Object.class);
-  
+
   static final MethodRef LIST_GET = forMethod(List.class, "get", int.class).asCheap();
-  
+
   static final MethodRef LIST_IMPL_FOR_PROVIDER_LIST =
       create(ListImpl.class, "forProviderList", List.class);
-  
+
   static final MethodRef LIST_SIZE = forMethod(List.class, "size").asCheap();
-  
+
   static final MethodRef LONG_TO_STRING = create(Long.class, "toString", long.class);
-  
+
   static final MethodRef LONG_VALUE = forMethod(Number.class, "longValue").asCheap();
 
   static final MethodRef OBJECT_TO_STRING = create(Object.class, "toString");
@@ -303,12 +303,12 @@ import java.util.Map;
           .add(Type.getArgumentTypes(method))
           .build();
     }
-    return new AutoValue_MethodRef(
-        clazz.isInterface() 
-            ? Opcodes.INVOKEINTERFACE 
-            : isStatic 
-                ? Opcodes.INVOKESTATIC 
-                : Opcodes.INVOKEVIRTUAL, 
+    return new MethodRef(
+        clazz.isInterface()
+            ? Opcodes.INVOKEINTERFACE
+            : isStatic
+                ? Opcodes.INVOKESTATIC
+                : Opcodes.INVOKEVIRTUAL,
         ownerType,
         org.objectweb.asm.commons.Method.getMethod(method),
         Type.getType(method.getReturnType()),
@@ -317,8 +317,8 @@ import java.util.Map;
   }
 
   static MethodRef createInstanceMethod(TypeInfo owner, Method method) {
-    return new AutoValue_MethodRef(
-        Opcodes.INVOKEVIRTUAL, 
+    return new MethodRef(
+        Opcodes.INVOKEVIRTUAL,
         owner,
         method,
         method.getReturnType(),
@@ -333,17 +333,17 @@ import java.util.Map;
    * The opcode to use to invoke the method.  Will be one of {@link Opcodes#INVOKEINTERFACE},
    * {@link Opcodes#INVOKESTATIC} or {@link Opcodes#INVOKEVIRTUAL}.
    */
-  abstract int opcode();
-  
+  int opcode(){ return opcode; }
+
   /** The 'internal name' of the type that owns the method. */
-  abstract TypeInfo owner();
-  
-  abstract org.objectweb.asm.commons.Method method();
-  abstract Type returnType();
-  abstract ImmutableList<Type> argTypes();
-  abstract Features features();
-  
-  // TODO(lukes): consider different names.  'invocation'? invoke() makes it sounds like we are 
+  TypeInfo owner(){ return owner; }
+
+  org.objectweb.asm.commons.Method method(){ return method; }
+  Type returnType(){ return returnType; }
+  ImmutableList<Type> argTypes(){ return argTypes; }
+  Features features(){ return features; }
+
+  // TODO(lukes): consider different names.  'invocation'? invoke() makes it sounds like we are
   // actually calling the method rather than generating an expression that will output code that
   // will invoke the method.
   Statement invokeVoid(final Expression ...args) {
@@ -359,14 +359,14 @@ import java.util.Map;
       }
     };
   }
-  
+
   Expression invoke(final Expression ...args) {
     return invoke(Arrays.asList(args));
   }
 
   Expression invoke(final Iterable<? extends Expression> args) {
     // void methods violate the expression contract of pushing a result onto the runtime stack.
-    checkState(!Type.VOID_TYPE.equals(returnType()), 
+    checkState(!Type.VOID_TYPE.equals(returnType()),
         "Cannot produce an expression from a void method.");
     Expression.checkTypes(argTypes(), args);
     Features features = features();
@@ -383,7 +383,7 @@ import java.util.Map;
   MethodRef asCheap() {
     return withFeature(Feature.CHEAP);
   }
-  
+
   MethodRef asNonNullable() {
     return withFeature(Feature.NON_NULLABLE);
   }
@@ -392,19 +392,19 @@ import java.util.Map;
     if (features().has(feature)) {
       return this;
     }
-    return new AutoValue_MethodRef(
-        opcode(), 
+    return new MethodRef(
+        opcode(),
         owner(),
         method(),
         returnType(),
         argTypes(),
         features().plus(feature));
   }
-  
+
   /**
    * Writes an invoke instruction for this method to the given adapter.  Useful when the expression
    * is not useful for representing operations.  For example, explicit dup operations are awkward
-   * in the Expression api. 
+   * in the Expression api.
    */
   void invokeUnchecked(CodeBuilder mv) {
     mv.visitMethodInsn(
@@ -413,7 +413,7 @@ import java.util.Map;
         method().getName(),
         method().getDescriptor(),
         // This is for whether the methods owner is an interface.  This is mostly to handle java8
-        // default methods on interfaces.  We don't care about those currently, but ASM requires 
+        // default methods on interfaces.  We don't care about those currently, but ASM requires
         // this.
         opcode() == Opcodes.INVOKEINTERFACE);
   }
@@ -423,5 +423,21 @@ import java.util.Map;
       arg.gen(mv);
     }
     invokeUnchecked(mv);
+  }
+
+  private final int opcode;
+  private final TypeInfo owner;
+  private final org.objectweb.asm.commons.Method method;
+  private final Type returnType;
+  private final ImmutableList<Type> argTypes;
+  private final Features features;
+
+  MethodRef(int opcode, TypeInfo owner, org.objectweb.asm.commons.Method method, Type returnType, ImmutableList<Type> argTypes, Features features) {
+    this.opcode = opcode;
+    this.owner = owner;
+    this.method = method;
+    this.returnType = returnType;
+    this.argTypes = argTypes;
+    this.features = features;
   }
 }
