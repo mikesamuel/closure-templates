@@ -24,9 +24,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.template.soy.SoyFileSetParserBuilder;
+import com.google.template.soy.SoyModule;
+import com.google.template.soy.error.ExplodingErrorReporter;
 import com.google.template.soy.jssrc.restricted.JsExpr;
 import com.google.template.soy.shared.SharedTestUtils;
-import com.google.template.soy.shared.internal.ErrorReporterModule;
 import com.google.template.soy.soytree.CallNode;
 import com.google.template.soy.soytree.SoyFileSetNode;
 
@@ -41,10 +42,7 @@ import java.util.Map;
  *
  */
 public class GenCallCodeUtilsTest extends TestCase {
-
-
-  private static final Injector INJECTOR =
-      Guice.createInjector(new ErrorReporterModule(), new JsSrcModule());
+  private static final Injector INJECTOR = Guice.createInjector(new SoyModule());
 
   private static final Deque<Map<String, JsExpr>> LOCAL_VAR_TRANSLATIONS =
       new ArrayDeque<Map<String, JsExpr>>();
@@ -68,7 +66,8 @@ public class GenCallCodeUtilsTest extends TestCase {
                 "{call some.func data=\"$boo\"}",
                 "  {param goo}Blah{/param}",
                 "{/call}"))
-        .isEqualTo("some.func(soy.$$augmentMap(opt_data.boo, {goo: 'Blah'}), null, opt_ijData)");
+        .isEqualTo(
+            "some.func(soy.$$assignDefaults({goo: 'Blah'}, opt_data.boo), null, opt_ijData)");
 
     String callExprText =
         getCallExprTextHelper(
@@ -89,9 +88,9 @@ public class GenCallCodeUtilsTest extends TestCase {
                 "  {param goo kind=\"html\"}Blah{/param}",
                 "{/call}"))
         .isEqualTo(
-            "some.func(soy.$$augmentMap(opt_data.boo, "
-                + "{goo: soydata.VERY_UNSAFE.$$ordainSanitizedHtmlForInternalBlocks('Blah')}), "
-                + "null, opt_ijData)");
+            "some.func(soy.$$assignDefaults("
+                + "{goo: soydata.VERY_UNSAFE.$$ordainSanitizedHtmlForInternalBlocks('Blah')}, "
+                + "opt_data.boo), null, opt_ijData)");
 
     final String callExprText =
         getCallExprTextHelper(
@@ -212,7 +211,11 @@ public class GenCallCodeUtilsTest extends TestCase {
     JsSrcTestUtils.simulateNewApiCall(INJECTOR);
     GenCallCodeUtils genCallCodeUtils = INJECTOR.getInstance(GenCallCodeUtils.class);
     JsExpr callExpr =
-        genCallCodeUtils.genCallExpr(callNode, LOCAL_VAR_TRANSLATIONS, AliasUtils.IDENTITY_ALIASES);
+        genCallCodeUtils.genCallExpr(
+            callNode,
+            LOCAL_VAR_TRANSLATIONS,
+            AliasUtils.IDENTITY_ALIASES,
+            ExplodingErrorReporter.get());
     return callExpr.getText();
   }
 

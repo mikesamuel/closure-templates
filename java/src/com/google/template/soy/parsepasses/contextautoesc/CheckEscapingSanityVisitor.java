@@ -24,6 +24,7 @@ import com.google.template.soy.soytree.AutoescapeMode;
 import com.google.template.soy.soytree.CallBasicNode;
 import com.google.template.soy.soytree.CallDelegateNode;
 import com.google.template.soy.soytree.CallParamContentNode;
+import com.google.template.soy.soytree.EscapingMode;
 import com.google.template.soy.soytree.LetContentNode;
 import com.google.template.soy.soytree.PrintDirectiveNode;
 import com.google.template.soy.soytree.SoyFileSetNode;
@@ -53,10 +54,14 @@ final class CheckEscapingSanityVisitor extends AbstractSoyNodeVisitor<Void> {
   private AutoescapeMode autoescapeMode;
 
   /** Registry of all templates in the Soy tree. */
-  private TemplateRegistry templateRegistry;
+  private final TemplateRegistry templateRegistry;
+  // TODO(user): replace the exceptions with invocations of the error reporter
+  @SuppressWarnings("unused")
   private final ErrorReporter errorReporter;
 
-  public CheckEscapingSanityVisitor(ErrorReporter errorReporter) {
+  public CheckEscapingSanityVisitor(
+      TemplateRegistry templateRegistry, ErrorReporter errorReporter) {
+    this.templateRegistry = templateRegistry;
     this.errorReporter = errorReporter;
   }
 
@@ -64,10 +69,7 @@ final class CheckEscapingSanityVisitor extends AbstractSoyNodeVisitor<Void> {
   // Implementations for specific nodes.
 
   @Override protected void visitSoyFileSetNode(SoyFileSetNode node) {
-    // Build templateRegistry.
-    templateRegistry = new TemplateRegistry(node, errorReporter);
     visitChildren(node);
-    templateRegistry = null;
   }
 
   @Override protected void visitTemplateNode(TemplateNode node) {
@@ -134,12 +136,6 @@ final class CheckEscapingSanityVisitor extends AbstractSoyNodeVisitor<Void> {
       RenderUnitNode node, String nodeName, String selfClosingExample) {
     final AutoescapeMode oldMode = autoescapeMode;
     if (node.getContentKind() != null) {
-      if (autoescapeMode == AutoescapeMode.NOAUTOESCAPE) {
-        throw SoyAutoescapeException.createWithNode(
-            "{" + nodeName + "} node with 'kind' attribute is not permitted in non-autoescaped "
-            + "templates: " + node.toSourceString(),
-            node);
-      }
       // Temporarily enter strict mode.
       autoescapeMode = AutoescapeMode.STRICT;
     } else if (autoescapeMode == AutoescapeMode.STRICT) {

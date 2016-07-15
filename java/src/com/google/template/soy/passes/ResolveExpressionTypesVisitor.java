@@ -27,7 +27,7 @@ import com.google.template.soy.base.SourceLocation;
 import com.google.template.soy.basetree.SyntaxVersion;
 import com.google.template.soy.basetree.SyntaxVersionUpperBound;
 import com.google.template.soy.error.ErrorReporter;
-import com.google.template.soy.error.SoyError;
+import com.google.template.soy.error.SoyErrorKind;
 import com.google.template.soy.exprtree.AbstractExprNodeVisitor;
 import com.google.template.soy.exprtree.AbstractOperatorNode;
 import com.google.template.soy.exprtree.AbstractParentExprNode;
@@ -109,32 +109,41 @@ import javax.annotation.Nullable;
  */
 final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
 
-  private static final SoyError BAD_INDEX_TYPE =
-      SoyError.of("bad index type {0} for {1}");
-  private static final SoyError BAD_KEY_TYPE =
-      SoyError.of("bad key type {0} for {1}");
-  private static final SoyError BRACKET_ACCESS_NOT_SUPPORTED =
-      SoyError.of("type {0} does not support bracket access");
-  private static final SoyError CHECK_NOT_NULL_ON_COMPILE_TIME_NULL =
-      SoyError.of("Cannot call checkNotNull on a parameter with a static type of ''null''");
-  private static final SoyError DOT_ACCESS_NOT_SUPPORTED =
-      SoyError.of("type {0} does not support dot access");
-  private static final SoyError DOT_ACCESS_NOT_SUPPORTED_CONSIDER_RECORD =
-      SoyError.of("type {0} does not support dot access (consider record instead of map)");
-  private static final SoyError DUPLICATE_KEY_IN_RECORD_LITERAL =
-      SoyError.of("Record literals with duplicate keys are not allowed.  Duplicate key: ''{0}''");
-  private static final SoyError LIST_LENGTH_ERROR =
-      SoyError.of("Soy lists do not have a ''length'' field. Use function length(...) instead.");
-  private static final SoyError MISSING_SOY_TYPE =
-      SoyError.of("Missing Soy type for node {0}");
-  private static final SoyError STRING_LENGTH_ERROR =
-      SoyError.of("Soy strings do not have a ''length'' field. Use function strLen(...) instead.");
-  private static final SoyError UNDEFINED_FIELD_FOR_OBJECT_TYPE =
-      SoyError.of("undefined field ''{0}'' for object type {1}");
-  private static final SoyError UNDEFINED_FIELD_FOR_RECORD_TYPE =
-      SoyError.of("undefined field ''{0}'' for record type {1}");
-  private static final SoyError VAR_REF_MISSING_SOY_TYPE =
-      SoyError.of("Missing Soy type for variable");
+  private static final SoyErrorKind BAD_FOREACH_TYPE =
+      SoyErrorKind.of("cannot iterate over {0} of type {1}");
+  private static final SoyErrorKind BAD_INDEX_TYPE = SoyErrorKind.of("bad index type {0} for {1}");
+  private static final SoyErrorKind BAD_KEY_TYPE = SoyErrorKind.of("bad key type {0} for {1}");
+  private static final SoyErrorKind EMPTY_LIST_FOREACH =
+      SoyErrorKind.of("cannot iterate over empty list");
+  private static final SoyErrorKind EMPTY_LIST_ACCESS =
+      SoyErrorKind.of("accessing item in empty list");
+  private static final SoyErrorKind EMPTY_MAP_ACCESS =
+      SoyErrorKind.of("accessing item in empty map");
+  private static final SoyErrorKind BRACKET_ACCESS_NOT_SUPPORTED =
+      SoyErrorKind.of("type {0} does not support bracket access");
+  private static final SoyErrorKind CHECK_NOT_NULL_ON_COMPILE_TIME_NULL =
+      SoyErrorKind.of("Cannot call checkNotNull on a parameter with a static type of ''null''");
+  private static final SoyErrorKind DOT_ACCESS_NOT_SUPPORTED =
+      SoyErrorKind.of("type {0} does not support dot access");
+  private static final SoyErrorKind DOT_ACCESS_NOT_SUPPORTED_CONSIDER_RECORD =
+      SoyErrorKind.of("type {0} does not support dot access (consider record instead of map)");
+  private static final SoyErrorKind DUPLICATE_KEY_IN_RECORD_LITERAL =
+      SoyErrorKind.of(
+          "Record literals with duplicate keys are not allowed.  Duplicate key: ''{0}''");
+  private static final SoyErrorKind LIST_LENGTH_ERROR =
+      SoyErrorKind.of(
+          "Soy lists do not have a ''length'' field. Use function length(...) instead.");
+  private static final SoyErrorKind MISSING_SOY_TYPE =
+      SoyErrorKind.of("Missing Soy type for node {0}");
+  private static final SoyErrorKind STRING_LENGTH_ERROR =
+      SoyErrorKind.of(
+          "Soy strings do not have a ''length'' field. Use function strLen(...) instead.");
+  private static final SoyErrorKind UNDEFINED_FIELD_FOR_OBJECT_TYPE =
+      SoyErrorKind.of("undefined field ''{0}'' for object type {1}");
+  private static final SoyErrorKind UNDEFINED_FIELD_FOR_RECORD_TYPE =
+      SoyErrorKind.of("undefined field ''{0}'' for record type {1}");
+  private static final SoyErrorKind VAR_REF_MISSING_SOY_TYPE =
+      SoyErrorKind.of("Missing Soy type for variable");
 
   /** User-declared syntax version. */
   private final SyntaxVersion declaredSyntaxVersion;
@@ -267,7 +276,7 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
     // Visit the foreach iterator expression
     visitExpressions(node.getParent());
     // Set the inferred type of the loop variable.
-    node.getVar().setType(getElementType(node.getExpr().getType(), node.getParent()));
+    node.getVar().setType(getElementType(node.getExpr().getType(), node));
     // Visit the node body
     visitChildren(node);
   }
@@ -295,11 +304,10 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
   /**
    * Given a collection type, compute the element type.
    * @param collectionType The base type.
-   * @param owningNode The current error context, in other words the SoyNode owning the
-   *     expression being scanned.
+   * @param node The ForeachNonemptyNode being iterated.
    * @return The type of the elements of the collection.
    */
-  private SoyType getElementType(SoyType collectionType, ExprHolderNode owningNode) {
+  private SoyType getElementType(SoyType collectionType, ForeachNonemptyNode node) {
     Preconditions.checkNotNull(collectionType);
     switch (collectionType.getKind()) {
       case UNKNOWN:
@@ -308,6 +316,10 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
         return UnknownType.getInstance();
 
       case LIST:
+        if (collectionType == ListType.EMPTY_LIST) {
+          errorReporter.report(node.getParent().getSourceLocation(), EMPTY_LIST_FOREACH);
+          return ErrorType.getInstance();
+        }
         return ((ListType) collectionType).getElementType();
 
       case UNION: {
@@ -316,16 +328,20 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
         UnionType unionType = (UnionType) collectionType;
         List<SoyType> fieldTypes = new ArrayList<>(unionType.getMembers().size());
         for (SoyType unionMember : unionType.getMembers()) {
-          fieldTypes.add(getElementType(unionMember, owningNode));
+          SoyType elementType = getElementType(unionMember, node);
+          if (elementType.getKind() == SoyType.Kind.ERROR) {
+            return ErrorType.getInstance();
+          }
+          fieldTypes.add(elementType);
         }
         return typeOps.computeLowestCommonType(fieldTypes);
       }
 
       default:
-        // If we're here, there's a bug in Soy. collectionType can't be set by template authors.
-        // It comes from the ForeachNonemptyNode.
-        throw new AssertionError(
-            "Cannot compute element type for collection of type '" + collectionType);
+        errorReporter.report(node.getParent().getSourceLocation(),
+            BAD_FOREACH_TYPE, node.getExpr().toSourceString(),
+            node.getExpr().getType());  // Report the outermost union type in the error.
+        return ErrorType.getInstance();
     }
   }
 
@@ -390,50 +406,52 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
       }
       // Special case for empty list.
       if (elementTypes.isEmpty()) {
-        elementTypes.add(UnknownType.getInstance());
+        node.setType(ListType.EMPTY_LIST);
+      } else {
+        node.setType(typeOps.getTypeRegistry().getOrCreateListType(
+            typeOps.computeLowestCommonType(elementTypes)));
       }
-      node.setType(typeOps.getTypeRegistry().getOrCreateListType(
-          typeOps.computeLowestCommonType(elementTypes)));
       tryApplySubstitution(node);
     }
 
     @Override protected void visitMapLiteralNode(MapLiteralNode node) {
-
       visitChildren(node);
+      setMapLiteralNodeType(node);
+      tryApplySubstitution(node);
+    }
 
+    private void setMapLiteralNodeType(MapLiteralNode node) {
       int numChildren = node.numChildren();
       if (numChildren % 2 != 0) {
         throw new AssertionError();
       }
 
-      SoyType commonKeyType;
-      SoyType commonValueType;
+      if (numChildren == 0) {
+        node.setType(MapType.EMPTY_MAP);
+        return;
+      }
+
       Set<String> duplicateKeyErrors = new HashSet<>();
       Map<String, SoyType> recordFieldTypes = new LinkedHashMap<>();
-      if (numChildren == 0) {
-        commonKeyType = UnknownType.getInstance();
-        commonValueType = UnknownType.getInstance();
-      } else {
-        List<SoyType> keyTypes = new ArrayList<>(numChildren / 2);
-        List<SoyType> valueTypes = new ArrayList<>(numChildren / 2);
-        for (int i = 0; i < numChildren; i += 2) {
-          ExprNode key = node.getChild(i);
-          ExprNode value = node.getChild(i + 1);
-          if (key.getKind() == ExprNode.Kind.STRING_NODE) {
-            String fieldName = ((StringNode) key).getValue();
-            SoyType prev = recordFieldTypes.put(fieldName, value.getType());
-            if (prev != null && duplicateKeyErrors.add(fieldName)) {
-              errorReporter.report(
-                  owningSoyNode.getSourceLocation(),
-                  DUPLICATE_KEY_IN_RECORD_LITERAL, fieldName);
-            }
+      List<SoyType> keyTypes = new ArrayList<>(numChildren / 2);
+      List<SoyType> valueTypes = new ArrayList<>(numChildren / 2);
+      for (int i = 0; i < numChildren; i += 2) {
+        ExprNode key = node.getChild(i);
+        ExprNode value = node.getChild(i + 1);
+        if (key.getKind() == ExprNode.Kind.STRING_NODE) {
+          String fieldName = ((StringNode) key).getValue();
+          SoyType prev = recordFieldTypes.put(fieldName, value.getType());
+          if (prev != null && duplicateKeyErrors.add(fieldName)) {
+            errorReporter.report(
+                owningSoyNode.getSourceLocation(),
+                DUPLICATE_KEY_IN_RECORD_LITERAL, fieldName);
           }
-          keyTypes.add(key.getType());
-          valueTypes.add(value.getType());
         }
-        commonKeyType = typeOps.computeLowestCommonType(keyTypes);
-        commonValueType = typeOps.computeLowestCommonType(valueTypes);
+        keyTypes.add(key.getType());
+        valueTypes.add(value.getType());
       }
+      SoyType commonKeyType = typeOps.computeLowestCommonType(keyTypes);
+      SoyType commonValueType = typeOps.computeLowestCommonType(valueTypes);
 
       if (StringType.getInstance().isAssignableFrom(commonKeyType)
           && recordFieldTypes.size() == numChildren / 2) {
@@ -448,7 +466,6 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
         // Case 2: Keys are not all strings. We should be creating a map for the user.
         node.setType(typeOps.getTypeRegistry().getOrCreateMapType(commonKeyType, commonValueType));
       }
-      tryApplySubstitution(node);
     }
 
     @Override protected void visitVarRefNode(VarRefNode varRef) {
@@ -870,6 +887,10 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
 
         case LIST:
           ListType listType = (ListType) baseType;
+          if (listType == ListType.EMPTY_LIST) {
+            errorReporter.report(sourceLocation, EMPTY_LIST_ACCESS);
+            return ErrorType.getInstance();
+          }
           // For lists, the key type must either be unknown or assignable to integer.
           if (keyType.getKind() != SoyType.Kind.UNKNOWN &&
               !IntType.getInstance().isAssignableFrom(keyType)) {
@@ -880,6 +901,10 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
 
         case MAP:
           MapType mapType = (MapType) baseType;
+          if (mapType == MapType.EMPTY_MAP) {
+            errorReporter.report(sourceLocation, EMPTY_MAP_ACCESS);
+            return ErrorType.getInstance();
+          }
           // For maps, the key type must either be unknown or assignable to the declared key type.
           if (keyType.getKind() != SoyType.Kind.UNKNOWN &&
               !mapType.getKeyType().isAssignableFrom(keyType)) {
@@ -1066,13 +1091,18 @@ final class ResolveExpressionTypesVisitor extends AbstractSoyNodeVisitor<Void> {
     }
 
     @Override protected void visitFunctionNode(FunctionNode node) {
-      // Handle 'isNonnull(<expr>)'
-      if (node.numChildren() == 1 && node.getFunctionName().equals("isNonnull")) {
+      // Handle 'isNull(<expr>)' and 'isNonnull(<expr>)'.
+      if (node.numChildren() != 1) {
+        return;
+      } else if (node.getFunctionName().equals("isNonnull")) {
         Wrapper<ExprNode> wrappedExpr = ExprEquivalence.get().wrap(node.getChild(0));
         positiveTypeConstraints.put(wrappedExpr, SoyTypes.removeNull(wrappedExpr.get().getType()));
         negativeTypeConstraints.put(wrappedExpr, NullType.getInstance());
+      } else if (node.getFunctionName().equals("isNull")) {
+        Wrapper<ExprNode> wrappedExpr = ExprEquivalence.get().wrap(node.getChild(0));
+        positiveTypeConstraints.put(wrappedExpr, NullType.getInstance());
+        negativeTypeConstraints.put(wrappedExpr, SoyTypes.removeNull(wrappedExpr.get().getType()));
       }
-      // Otherwise don't make any inferences (don't visit children).
     }
 
     @Override protected void visitExprNode(ExprNode node) {

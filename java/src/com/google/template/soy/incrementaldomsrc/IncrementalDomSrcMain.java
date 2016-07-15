@@ -18,7 +18,6 @@ package com.google.template.soy.incrementaldomsrc;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
@@ -38,6 +37,8 @@ import com.google.template.soy.shared.restricted.ApiCallScopeBindingAnnotations.
 import com.google.template.soy.sharedpasses.opti.SimplifyVisitor;
 import com.google.template.soy.soytree.SoyFileNode;
 import com.google.template.soy.soytree.SoyFileSetNode;
+import com.google.template.soy.soytree.TemplateRegistry;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
@@ -66,16 +67,13 @@ public class IncrementalDomSrcMain {
   /** Provider for getting an instance of GenJsCodeVisitor. */
   private final Provider<GenIncrementalDomCodeVisitor> genIncrementalDomCodeVisitorProvider;
 
-  /** For reporting errors during code generation. */
-  private final ErrorReporter errorReporter;
-
 
   /**
    * @param apiCallScope The scope object that manages the API call scope.
    * @param simplifyVisitor The instance of SimplifyVisitor to use.
    * @param optimizeBidiCodeGenVisitorProvider Provider for getting an instance of
    *     OptimizeBidiCodeGenVisitor.
-   * @param genIncrementalDomCodeVisitorProvider Provider for getting an instance of 
+   * @param genIncrementalDomCodeVisitorProvider Provider for getting an instance of
    *     GenIncrementalDomCodeVisitor.
    */
   @Inject
@@ -83,13 +81,11 @@ public class IncrementalDomSrcMain {
       @ApiCall GuiceSimpleScope apiCallScope,
       SimplifyVisitor simplifyVisitor,
       Provider<OptimizeBidiCodeGenVisitor> optimizeBidiCodeGenVisitorProvider,
-      Provider<GenIncrementalDomCodeVisitor> genIncrementalDomCodeVisitorProvider,
-      ErrorReporter errorReporter) {
+      Provider<GenIncrementalDomCodeVisitor> genIncrementalDomCodeVisitorProvider) {
     this.apiCallScope = apiCallScope;
     this.simplifyVisitor = simplifyVisitor;
     this.optimizeBidiCodeGenVisitorProvider = optimizeBidiCodeGenVisitorProvider;
     this.genIncrementalDomCodeVisitorProvider = genIncrementalDomCodeVisitorProvider;
-    this.errorReporter = errorReporter;
   }
 
 
@@ -105,45 +101,40 @@ public class IncrementalDomSrcMain {
    */
   public List<String> genJsSrc(
       SoyFileSetNode soyTree,
-      SoyJsSrcOptions jsSrcOptions)
+      TemplateRegistry registry,
+      SoyJsSrcOptions jsSrcOptions,
+      ErrorReporter errorReporter)
       throws SoySyntaxException {
 
-
-    // Make sure that we don't try to use goog.i18n.bidi when we aren't supposed to use Closure.
-    Preconditions.checkState(
-        !jsSrcOptions.getUseGoogIsRtlForBidiGlobalDir()
-        || jsSrcOptions.shouldProvideRequireSoyNamespaces()
-        || jsSrcOptions.shouldProvideRequireJsFunctions()
-        || jsSrcOptions.shouldGenerateGoogModules(),
-        "Do not specify useGoogIsRtlForBidiGlobalDir without one of "
-        + "shouldProvideRequireSoyNamespaces, shouldProvideRequireJsFunctions or "
-        + "shouldGenerateGoogModules.");
+    SoyJsSrcOptions incrementalJSSrcOptions = jsSrcOptions.clone();
+    incrementalJSSrcOptions.setShouldProvideBothSoyNamespacesAndJsFunctions(false);
+    incrementalJSSrcOptions.setShouldProvideRequireSoyNamespaces(false);
+    incrementalJSSrcOptions.setShouldProvideRequireJsFunctions(false);
+    incrementalJSSrcOptions.setShouldDeclareTopLevelNamespaces(false);
+    incrementalJSSrcOptions.setShouldGenerateGoogModules(true);
 
     try (WithScope withScope = apiCallScope.enter()) {
       // Seed the scoped parameters.
-      apiCallScope.seed(SoyJsSrcOptions.class, jsSrcOptions);
+      apiCallScope.seed(SoyJsSrcOptions.class, incrementalJSSrcOptions);
       BidiGlobalDir bidiGlobalDir = SoyBidiUtils.decodeBidiGlobalDirFromJsOptions(
-          jsSrcOptions.getBidiGlobalDir(),
-          jsSrcOptions.getUseGoogIsRtlForBidiGlobalDir());
+          incrementalJSSrcOptions.getBidiGlobalDir(),
+          incrementalJSSrcOptions.getUseGoogIsRtlForBidiGlobalDir());
       ApiCallScopeUtils.seedSharedParams(apiCallScope, null /* msgBundle */, bidiGlobalDir);
-
-// TODO(sparhami) figure out how to deal with msg nodes - need to support some sort of innerHTML,
-// which means we need autoescaping for just those subtrees.
-//      new ReplaceMsgsWithGoogMsgsVisitor(errorReporter).exec(soyTree);
-//      new MoveGoogMsgDefNodesEarlierVisitor(errorReporter).exec(soyTree);
-//      Preconditions.checkState(
-//          bidiGlobalDir != null,
-//          "If enabling shouldGenerateGoogMsgDefs, must also set bidi global directionality.");
 
       // Do the code generation.
       optimizeBidiCodeGenVisitorProvider.get().exec(soyTree);
-      simplifyVisitor.exec(soyTree);
+      simplifyVisitor.simplify(soyTree, registry);
 
       new HtmlTransformVisitor(errorReporter).exec(soyTree);
       IncrementalDomOutputOptimizers.collapseOpenTags(soyTree);
       IncrementalDomOutputOptimizers.collapseElements(soyTree);
 
-      return genIncrementalDomCodeVisitorProvider.get().exec(soyTree);
+      new UnescapingVisitor().exec(soyTree);
+
+      // Must happen after HtmlTransformVisitor, so it can infer context for {msg} nodes.
+      new IncrementalDomExtractMsgVariablesVisitor().exec(soyTree);
+
+      return genIncrementalDomCodeVisitorProvider.get().gen(soyTree, registry, errorReporter);
     }
   }
 
@@ -160,11 +151,13 @@ public class IncrementalDomSrcMain {
    */
   public void genJsFiles(
       SoyFileSetNode soyTree,
+      TemplateRegistry templateRegistry,
       SoyJsSrcOptions jsSrcOptions,
-      String outputPathFormat)
+      String outputPathFormat,
+      ErrorReporter errorReporter)
       throws SoySyntaxException, IOException {
 
-    List<String> jsFileContents = genJsSrc(soyTree, jsSrcOptions);
+    List<String> jsFileContents = genJsSrc(soyTree, templateRegistry, jsSrcOptions, errorReporter);
 
     ImmutableList<SoyFileNode> srcsToCompile = ImmutableList.copyOf(Iterables.filter(
         soyTree.getChildren(), SoyFileNode.MATCH_SRC_FILENODE));

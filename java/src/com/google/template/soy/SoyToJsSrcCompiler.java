@@ -94,17 +94,6 @@ public final class SoyToJsSrcCompiler {
           usage = "User-declared syntax version for the Soy file bundle (e.g. 2.0, 2.3).")
   private String syntaxVersion = "";
 
-  // TODO(lukes): remove, this is no longer used
-  @Option(name = "--isUsingIjData",
-          usage = "Whether to enable use of injected data (syntax is '$ij.*').",
-          handler = MainClassUtils.BooleanOptionHandler.class)
-  private boolean isUsingIjData = false;
-
-  // TODO(user): remove
-  @Option(name = "--codeStyle",
-          usage = "The code style to use when generating JS code ('stringbuilder' or 'concat').")
-  private String codeStyle = "concat";
-
   @Option(name = "--shouldGenerateJsdoc",
           usage = "Whether we should generate JSDoc with type info for the Closure Compiler." +
                   " Note the generated JSDoc does not have description text, only types for the" +
@@ -210,15 +199,6 @@ public final class SoyToJsSrcCompiler {
                   " print directive plugins (comma-delimited list).")
   private String pluginModules = "";
 
-  @Option(name = "--supportContentSecurityPolicy",
-          usage = "Adds attributes so that browsers that support the Content Security Policy" +
-                  " (CSP) can distinguish inline scripts written by the template author from" +
-                  " any injected via XSS.  If true, the parameter {$ij.csp_nonce} should" +
-                  " contain an unpredictable per-page-render secret consisting of ASCII" +
-                  " alpha-numerics, plus (+), and solidus (/).  Off by default.",
-          handler = MainClassUtils.BooleanOptionHandler.class)
-  private boolean supportContentSecurityPolicy = false;
-
   /** The remaining arguments after parsing command-line flags. */
   @Argument
   private List<String> arguments = Lists.newArrayList();
@@ -232,17 +212,18 @@ public final class SoyToJsSrcCompiler {
    * @throws SoySyntaxException If a syntax error is detected.
    */
   public static void main(final String[] args) throws IOException, SoySyntaxException {
-    MainClassUtils.run(new Main() {
-      @Override
-      public CompilationResult main() throws IOException {
-        return new SoyToJsSrcCompiler().execMain(args);
-      }
-    });
+    MainClassUtils.run(
+        new Main() {
+          @Override
+          public void main() throws IOException {
+            new SoyToJsSrcCompiler().execMain(args);
+          }
+        });
   }
 
   private SoyToJsSrcCompiler() {}
 
-  private CompilationResult execMain(String[] args) throws IOException {
+  private void execMain(String[] args) throws IOException {
 
     final CmdLineParser cmdLineParser = MainClassUtils.parseFlags(this, args, USAGE_PREFIX);
 
@@ -273,7 +254,6 @@ public final class SoyToJsSrcCompiler {
     if (!compileTimeGlobalsFile.isEmpty()) {
       sfsBuilder.setCompileTimeGlobals(new File(compileTimeGlobalsFile));
     }
-    sfsBuilder.setSupportContentSecurityPolicy(supportContentSecurityPolicy);
     SoyFileSet sfs = sfsBuilder.build();
 
     // Create SoyJsSrcOptions.
@@ -288,10 +268,11 @@ public final class SoyToJsSrcCompiler {
 
     // Compile.
     boolean generateLocalizedJs = !locales.isEmpty();
-    return generateLocalizedJs
-        ? sfs.compileToJsSrcFiles(
-        outputPathFormat, inputPrefix, jsSrcOptions, locales, messageFilePathFormat)
-        : sfs.compileToJsSrcFiles(
-            outputPathFormat, inputPrefix, jsSrcOptions, locales, null);
+    if (generateLocalizedJs) {
+      sfs.compileToJsSrcFiles(
+          outputPathFormat, inputPrefix, jsSrcOptions, locales, messageFilePathFormat);
+    } else {
+      sfs.compileToJsSrcFiles(outputPathFormat, inputPrefix, jsSrcOptions, locales, null);
+    }
   }
 }

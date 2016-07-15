@@ -19,8 +19,9 @@ package com.google.template.soy.soytree;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.template.soy.base.SoySyntaxException;
+import com.google.template.soy.base.SourceLocation;
 import com.google.template.soy.base.internal.BaseUtils;
+import com.google.template.soy.base.internal.LegacyInternalSyntaxException;
 import com.google.template.soy.basetree.CopyState;
 import com.google.template.soy.exprtree.ExprNode;
 import com.google.template.soy.exprtree.ExprRootNode;
@@ -155,11 +156,14 @@ public final class TemplateDelegateNode extends TemplateNode implements ExprHold
     this.delPriority = orig.delPriority;
   }
 
-  static void verifyVariantName(String delTemplateVariant) {
+  static void verifyVariantName(String delTemplateVariant, SourceLocation srcLoc) {
     if (delTemplateVariant.length() > 0 && !(BaseUtils.isIdentifier(delTemplateVariant))) {
-      throw SoySyntaxException.createWithoutMetaInfo(
-          "Invalid variant \"" + delTemplateVariant + "\" in 'deltemplate'" +
-          " (when a string literal is used, value must be an identifier).");
+      throw LegacyInternalSyntaxException.createWithMetaInfo(
+          "Invalid variant \""
+              + delTemplateVariant
+              + "\" in 'deltemplate'"
+              + " (when a string literal is used, value must be an identifier).",
+          srcLoc);
     }
   }
 
@@ -235,7 +239,7 @@ public final class TemplateDelegateNode extends TemplateNode implements ExprHold
       // Globals were already substituted: We may now create the definitive variant and key fields
       // on this node.
       delTemplateVariant = ((StringNode) exprNode).getValue();
-      TemplateDelegateNode.verifyVariantName(delTemplateVariant);
+      TemplateDelegateNode.verifyVariantName(delTemplateVariant, exprNode.getSourceLocation());
       delTemplateKey = DelTemplateKey.create(delTemplateName, delTemplateVariant);
       return delTemplateKey;
     } else if (exprNode instanceof GlobalNode) {

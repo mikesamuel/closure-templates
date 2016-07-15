@@ -20,9 +20,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.template.soy.data.SanitizedContent.ContentKind;
 import com.google.template.soy.data.SoyRecord;
 import com.google.template.soy.data.SoyValueConverter;
 import com.google.template.soy.data.SoyValueHelper;
+import com.google.template.soy.jbcsrc.api.AdvisingAppendable;
+import com.google.template.soy.jbcsrc.api.RenderResult;
 import com.google.template.soy.msgs.SoyMsgBundle;
 import com.google.template.soy.msgs.restricted.SoyMsg;
 import com.google.template.soy.shared.SoyCssRenamingMap;
@@ -32,12 +36,36 @@ import com.google.template.soy.shared.restricted.SoyJavaPrintDirective;
 
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * A collection of contextual rendering data.  Each top level rendering operation will obtain a
  * single instance of this object and it will be propagated throughout the render tree.
  */
 public final class RenderContext {
-  private final DelTemplateSelector templateSelector;
+  private static final CompiledTemplate EMPTY_TEMPLATE =
+      new CompiledTemplate() {
+        @Override
+        public RenderResult render(AdvisingAppendable appendable, RenderContext context) {
+          return RenderResult.done();
+        }
+
+        @Override
+        @Nullable
+        public ContentKind kind() {
+          // The kind doesn't really matter, since the empty string can always be safely escaped
+          return null;
+        }
+      };
+
+  // TODO(lukes):  within this object most of these fields are constant across all renders while
+  // some are expected to change frequently (the renaming maps, msgBundle and activeDelPackages).
+  // Consider splitting this into two objects to represent the changing lifetimes.  We are kind of
+  // doing this now by having SoySauceImpl reuse the Builder, but this is a little strange and could
+  // be theoretically made more efficient to construct.
+
+  private final ImmutableSet<String> activeDelPackages;
+  private final CompiledTemplates templates;
   private final SoyCssRenamingMap cssRenamingMap;
   private final SoyIdRenamingMap xidRenamingMap;
   private final ImmutableMap<String, SoyJavaFunction> soyJavaFunctionsMap;
@@ -47,7 +75,8 @@ public final class RenderContext {
   private final SoyMsgBundle msgBundle;
 
   private RenderContext(Builder builder) {
-    this.templateSelector = checkNotNull(builder.templateSelector);
+    this.activeDelPackages = checkNotNull(builder.activeDelPackages);
+    this.templates = checkNotNull(builder.templates);
     this.cssRenamingMap = builder.cssRenamingMap;
     this.xidRenamingMap = builder.xidRenamingMap;
     this.soyJavaFunctionsMap = builder.soyJavaFunctionsMap;
@@ -85,7 +114,18 @@ public final class RenderContext {
 
   public CompiledTemplate getDelTemplate(
       String calleeName, String variant, boolean allowEmpty, SoyRecord params, SoyRecord ij) {
-    return templateSelector.selectDelTemplate(calleeName, variant, allowEmpty).create(params, ij);
+    CompiledTemplate.Factory callee =
+        templates.selectDelTemplate(calleeName, variant, activeDelPackages);
+    if (callee == null) {
+      if (allowEmpty) {
+        return EMPTY_TEMPLATE;
+      }
+      throw new IllegalArgumentException(
+          "Found no active impl for delegate call to '"
+              + calleeName
+              + "' (and no attribute allowemptydefault=\"true\").");
+    }
+    return callee.create(params, ij);
   }
 
   /**
@@ -111,7 +151,7 @@ public final class RenderContext {
   @VisibleForTesting
   public Builder toBuilder() {
     return new Builder()
-        .withTemplateSelector(templateSelector)
+        .withActiveDelPackages(this.activeDelPackages)
         .withSoyFunctions(soyJavaFunctionsMap)
         .withSoyPrintDirectives(soyJavaDirectivesMap)
         .withCssRenamingMap(cssRenamingMap)
@@ -122,7 +162,8 @@ public final class RenderContext {
 
   /** A builder for configuring the context. */
   public static final class Builder {
-    private DelTemplateSelector templateSelector;
+    private CompiledTemplates templates;
+    private ImmutableSet<String> activeDelPackages = ImmutableSet.of();
     private SoyCssRenamingMap cssRenamingMap = SoyCssRenamingMap.EMPTY;
     private SoyIdRenamingMap xidRenamingMap = SoyCssRenamingMap.EMPTY;
     private ImmutableMap<String, SoyJavaFunction> soyJavaFunctionsMap = ImmutableMap.of();
@@ -130,8 +171,13 @@ public final class RenderContext {
     private SoyValueConverter converter = SoyValueHelper.UNCUSTOMIZED_INSTANCE;
     private SoyMsgBundle msgBundle = SoyMsgBundle.EMPTY;
 
-    public Builder withTemplateSelector(DelTemplateSelector selector) {
-      this.templateSelector = checkNotNull(selector);
+    public Builder withCompiledTemplates(CompiledTemplates templates) {
+      this.templates = checkNotNull(templates);
+      return this;
+    }
+
+    public Builder withActiveDelPackages(ImmutableSet<String> activeDelPackages) {
+      this.activeDelPackages = checkNotNull(activeDelPackages);
       return this;
     }
 

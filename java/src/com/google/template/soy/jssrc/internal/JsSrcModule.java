@@ -24,11 +24,9 @@ import com.google.template.soy.jssrc.internal.GenJsExprsVisitor.GenJsExprsVisito
 import com.google.template.soy.jssrc.internal.TranslateToJsExprVisitor.TranslateToJsExprVisitorFactory;
 import com.google.template.soy.jssrc.restricted.SoyJsSrcPrintDirective;
 import com.google.template.soy.jssrc.restricted.SoyLibraryAssistedJsSrcPrintDirective;
-import com.google.template.soy.passes.SharedPassesModule;
 import com.google.template.soy.shared.internal.ApiCallScope;
 import com.google.template.soy.shared.internal.FunctionAdapters;
 import com.google.template.soy.shared.internal.GuiceSimpleScope;
-import com.google.template.soy.shared.internal.SharedModule;
 import com.google.template.soy.shared.restricted.SoyPrintDirective;
 
 import java.util.Map;
@@ -46,20 +44,15 @@ public class JsSrcModule extends AbstractModule {
 
 
   @Override protected void configure() {
-
-    // Install requisite modules.
-    install(new SharedModule());
-    install(new SharedPassesModule());
-
     // Bindings for when explicit dependencies are required.
     bind(JsSrcMain.class);
     bind(GenJsCodeVisitor.class);
     bind(OptimizeBidiCodeGenVisitor.class);
     bind(CanInitOutputVarVisitor.class);
-    bind(GenCallCodeUtils.class);
     bind(IsComputableAsJsExprsVisitor.class);
     bind(JsExprTranslator.class);
     bind(GenDirectivePluginRequiresVisitor.class);
+    bind(DelTemplateNamer.class);
 
     // Bind providers of factories (created via assisted inject).
     install(new FactoryModuleBuilder().build(GenJsExprsVisitorFactory.class));
